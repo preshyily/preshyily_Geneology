@@ -10,7 +10,7 @@
 			C:\Windows\system32>python --version
 			Python 3.7.9
 
-1. **Install VSCode and Necessary Extensions:** [done]
+2. **Install VSCode and Necessary Extensions:** [done]
     
     - Download and install Visual Studio Code from the official website: [VSCode Download](https://code.visualstudio.com/)
     - Install essential extensions:
@@ -18,90 +18,93 @@
         - Pylance by Microsoft [done]
         - GitLens — Git supercharged by GitKraken [done]
 
-1. **Install Uncompyle6:**
+
+3. **Install Uncompyle6:**
     
     - Open a terminal and run: `pip install uncompyle6`
     - Verify installation by running `uncompyle6 --version`
 
-1. **Configure VSCode Settings for The Sims 4 Modding:**
+4. **Configure VSCode Settings for The Sims 4 Modding:**
     
-    - Open VSCode, press CTRL + Shift + P and search: 'python: Select Interpreter'.
+    - Open VSCode, press **CTRL + Shift + P** and search: `python: Select Interpreter`.
     - Create a new virtual env named after mod
     - Configure Python path to point to newly created virtual env.
-    - Adjust other settings as needed for a comfortable development environment.
+    - Adjust other settings as needed for a comfortable development environment (*theme, autosave, extensions, etc*).
 
 
 #### Task: Mod Initialization
 1. **Download Mod Folder Structure:[done]**
-- Create a new folder for your mod project.
--  Download the [mod template](https://github.com/LuquanLi/TheSims4ScriptModBuilder) by Luquan Li
-- Inside the [TheSims4ScriptModBuilder](https://github.com/LuquanLi/TheSims4ScriptModBuilder) folder, copy all subfolders and files: `src`, `util`, `.gitignore`, `LICENSE`, `README.md`, `compile.py`, `config.ini`, `decompile.py`.
-- Paste in created Mod Folder.
+   - Create a new folder for your mod project.
+   -  Download the [mod template](https://github.com/LuquanLi/TheSims4ScriptModBuilder) by Luquan Li
+   - Inside the [TheSims4ScriptModBuilder](https://github.com/LuquanLi/TheSims4ScriptModBuilder) folder, copy all subfolders and files: `src`, `util`, `.gitignore`, `LICENSE`, `README.md`, `compile.py`, `config.ini`, `decompile.py`.
+   - Paste in created Mod Folder.
 2. **Add Configuration Files & Update The Sims 4  (`settings.py`):[done]**
-- Create a `settings.py` file in the `src` folder to manage settings programmatically.
-- Update The Sims 4 to latest version.
+   - Create a `settings.py` file in the `src` folder to manage settings programmatically.
+   - Update The Sims 4 to latest version.
 3. **Initialize a Git Repository for Version Control:**
-- Download Git for Windows
-- Open Git Bash and enter the following:
-    ```bash
-    $ git config --global user.name "username"
-    $ git config --global user.email email@domain.com
+   - Download Git for Windows
+   - Open Git Bash and enter the following:
+       ```bash
+       $ git config --global user.name "username"
+       $ git config --global user.email email@domain.com
 
-    #verify changes
-    $ git config --list
-    ```
-    
-    **Option 1:**
-    - Open a terminal in your mod project folder.
-    - Run `git init` to initialize a Git repository.
-    - Verify the `.gitignore` file was updated so that it can exclude unnecessary files from version control.
-    - Commit the initial project structure.
-    - Push initial changes.
-    
-    **Option 2:**
-    - Open VSCode and click `Source Control` in left hand tab
-    - Commit the initial project structure.
-    - Enter Message in textbox above `Commit` button
-    - Push initial changes. 
+       #verify changes
+       $ git config --list
+       ```
+   - After setting your Github credentials follow one of the opitions below to track your files:     
+       **Option 1:**
+       - Open a terminal in your mod project folder.
+       - Run `git init` to initialize a Git repository.
+       - Verify the `.gitignore` file was updated so that it can exclude unnecessary files from version control.
+       - Commit the initial project structure.
+       - Push initial changes.
+       
+       **Option 2:**
+       - Open VSCode and click `Source Control` in left hand tab
+       - Commit the initial project structure.
+       - Enter Message in textbox above `Commit` button
+       - Push initial changes. 
 
 #### Task: Configuration Settings
 1. **Set Up Paths in `config.ini`:[done]**
    - Define paths for the Sims 4 mod directory, game content directory, project directory, and Uncompyle directory. **Pay attention to the direction of the slashes**. 
-    Config.ini:
-     ```ini
-        [Directory]
-        #Default path for windows
-        Sims4ModDir = C:\Users\msjac\OneDrive\Documents\Electronic Arts\The Sims 4\Mods
-        Sims4GameContentDir = C:\Program Files (x86)\Steam\steamapps\common\The Sims 4
-        ProjectDir = C:\Users\msjac\OneDrive\Documents\preshyily_Geneology
-        GameContentPython = /Game/Bin/Python
-        [Dependency]
-        # For windows: where uncompyle6
-        Uncompyle6Path = C:\Program Files\Python37\Scripts\uncompyle6.exe
-        # Number of worker processes
-        workers = 10
-        # For windows: where uncompyle6
-        Uncompyle6Path = C:\Program Files\Python37\Scripts\uncompyle6.exe
-        # Number of worker processes
-        workers = 10
-     ```
-   - Update the following lines in the constants.py file.
-    Constants.py:
-     ```python
-     game_content_gameplay = game_content_dir + '\\Data\\Simulation\\Gameplay'
+    
+        `config.ini`:
+        ```ini
+            [Directory]
+            #Default path for windows
+            Sims4ModDir = C:\\Users\\[YOUR USERNAME]\\OneDrive\\Documents\Electronic Arts\The Sims 4\Mods
+            Sims4GameContentDir = C:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4
+            ProjectDir = C:\\Users\\[YOUR USERNAME]\\OneDrive\\Documents\\[YOUR MOD FOLDER]
+            GameContentPython = /Game/Bin/Python
+            [Dependency]
+            # For windows: where uncompyle6
+            Uncompyle6Path = C:\\Program Files\\Python37\\Scripts\\uncompyle6.exe
+            # Number of worker processes
+            workers = 10
+            # For windows: where uncompyle6
+            Uncompyle6Path = C:\\Program Files\\Python37\\Scripts\\uncompyle6.exe
+            # Number of worker processes
+            workers = 10
+        ```
+   - Update the following lines in the `constants.py` file.
+    
+        `constants.py`:
+        ```python
+        game_content_gameplay = game_content_dir + '\\Data\\Simulation\\Gameplay'
 
-     project_game_zip_dir = project_dir + '\\game\\zip'
-     project_game_unzip_dir = project_dir + '\\game\\unzip'
-     project_game_decompile_dir = project_dir + '\\game\\decompile'
-     project_game_python = '\\python'
-     project_game_gameplay = '\\gameplay'
-     project_build_dir = project_dir + '\\build'
-     project_build_compile_dir = project_build_dir + '\\compile'
-     project_src_dir = project_dir + '\\src'
-     
-     ```
-   - Update the following lines in the decompile.py file. Do NOT select all, copy and paste this. Find the lines in the decompile.py file and change.
-    decompile.py:
+        project_game_zip_dir = project_dir + '\\game\\zip'
+        project_game_unzip_dir = project_dir + '\\game\\unzip'
+        project_game_decompile_dir = project_dir + '\\game\\decompile'
+        project_game_python = '\\python'
+        project_game_gameplay = '\\gameplay'
+        project_build_dir = project_dir + '\\build'
+        project_build_compile_dir = project_build_dir + '\\compile'
+        project_src_dir = project_dir + '\\src'
+        
+        ```
+   - Update the following lines in the `decompile.py` file. Do NOT select all, copy and paste this. Find the lines in the `decompile.py` file and change.
+    `decompile.py`:
      ```python
         def unzip(src: string, dest: string):
             for file in os.listdir(src):
@@ -146,7 +149,7 @@
         todo.append([desc_path + "\\" + target_file_name, src_file_path])
 
      ```
-
+   - Update the **ALL** forward slashes `'/'` to backwards slashes `'\\'` in the `compile.py` file. 
 
 2. **Configure Mod-Specific Settings:[done]**
    - Add settings for mod name, version, author, etc., in `config.ini`.
@@ -160,6 +163,15 @@
      ```
 
 
-3. **Decompile The SIms 4 python files via `config.ini`:[done]**
+3. **Decompile The Sims 4 python files via `config.ini` and Setup test mod:[done]**
    - In VSCode right-click and run `decompile.py` or open cmd terminal in VSCode and type `python decompile.py`
    - Verify `game` folder has generated in Mod folder. 
+   - Run The Sims 4 game with only the following mods in the Mods folder: 
+        ```
+            [Your mod]
+            MC Command Center (deaderpool)
+            BetterExceptions (twistedmexi)
+            and UICheats (weerbesu)
+        ```
+   - Create a new game and load into a lot. Press CTRL+SHIFT+C to open the cheat console and enter `cheats help` to verify the mod is working correctly. 
+     - Any errors will be found in `./Electronic Arts/The Sims 4/` named something similar to LastExceptions.txt or BetterException.txt (if you installed the BetterExceptions mod)
