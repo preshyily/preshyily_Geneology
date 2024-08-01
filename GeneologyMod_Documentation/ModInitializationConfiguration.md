@@ -29,7 +29,7 @@
 
 1. **Install Uncompyle6:**
     
-    - Open a terminal and run `pip install uncompyle6`
+    - Open a terminal and run: `pip install uncompyle6`
     - Verify installation by running `uncompyle6 --version`
 
 1. **Configure VSCode Settings for The Sims 4 Modding:**
@@ -56,6 +56,7 @@
     $ git config --global user.name "username"
     $ git config --global user.email email@domain.com
 
+    #verify changes
     $ git config --list
     ```
     
