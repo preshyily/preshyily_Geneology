@@ -20,15 +20,28 @@ def copy_zip(src: string, dest: string):
 def unzip(src: string, dest: string):
     for file in os.listdir(src):
         if file.endswith('.zip'):
-            PyZipFile(src + '/' + file).extractall(dest + '/' + file.title().split('.')[0].lower())
+            PyZipFile(src + '/' + file).extractall(dest + '\\' + file.title().split('.')[0].lower())
 
 
 def decompile_worker(args):
     dest_path, src_file = args
+
+    dest_dir = os.path.dirname(dest_path)
+    # Create the destination directory if it does not exist
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
     print("Decompiling %s" % src_file)
-    rv = run([uncompyle6, "-o", dest_path, src_file], text=True,
+    rv = run([uncompyle6, "-o", dest_dir, src_file], text=True,
              capture_output=True)
+    
+    # Move the decompiled file to the correct location
+    src_filename = os.path.basename(src_file).replace('.pyc', '.py')
+    dest_file = os.path.join(dest_dir, src_filename)
+    if os.path.exists(dest_file):
+        shutil.move(os.path.join(dest_dir, src_filename), dest_path)
+    
     print("Done %s" % src_file)
+    print(rv.returncode)
     return [rv.returncode, rv.stderr]
 
 
@@ -46,10 +59,10 @@ def decompile(src: string):
 
             src_file_path = str(os.path.join(root, filename))
             relative_path = str(Path(root).relative_to(project_game_unzip_dir))
-            desc_path = project_game_decompile_dir + '/' + relative_path
+            desc_path = project_game_decompile_dir + '\\' + relative_path
 
             target_file_name = filename.replace('.pyc', '.py')
-            todo.append([desc_path + "/" + target_file_name, src_file_path])
+            todo.append([desc_path + "\\" + target_file_name, src_file_path])
 
     with Pool(num_decompilers) as pool:
         rv = pool.map(decompile_worker, todo)
@@ -73,7 +86,7 @@ def copy_files_and_unzip():
 
 
 def run_decompile():
-    for folder in [project_game_unzip_dir + '/' + x for x in os.listdir(project_game_unzip_dir)]:
+    for folder in [project_game_unzip_dir + '\\' + x for x in os.listdir(project_game_unzip_dir)]:
         decompile(folder)
 
 
