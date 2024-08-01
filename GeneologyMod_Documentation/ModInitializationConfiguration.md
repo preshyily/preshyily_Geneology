@@ -50,7 +50,23 @@
 - Create a `settings.py` file in the `src` folder to manage settings programmatically.
 - Update The Sims 4 to latest version.
 3. **Initialize a Git Repository for Version Control:**
-- Open a terminal in your mod project folder.
-- Run `git init` to initialize a Git repository.
-- Verify the `.gitignore` file was updated so that it can exclude unnecessary files from version control.
-- Commit the initial project structure.
+- Download Git for Windows
+- Open Git Bash and enter the followig:
+    ``` 
+    $ git config --global user.name "username"
+    $ git config --global user.email email@domain.com
+
+    $ git config --list
+    ```
+    
+    **Option 1:**
+    - Open a terminal in your mod project folder.
+    - Run `git init` to initialize a Git repository.
+    - Verify the `.gitignore` file was updated so that it can exclude unnecessary files from version control.
+    - Commit the initial project structure.
+    - Push initial changes.
+    **Option 2:**
+    - Open VSCode and click `Source Control` in left hand tab
+    - Commit the initial project structure.
+    - Enter Message in textbox above `Commit` button
+    - Push initial changes. 
