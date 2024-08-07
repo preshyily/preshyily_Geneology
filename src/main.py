@@ -1,9 +1,11 @@
 #PRESHYPILY@GMAIL.COM
 
 from sims.sim_info_manager import SimInfoManager
-from time_service import TimeService
 from date_and_time import DateAndTime
+from time_service import TimeService
 from helpers.injector import inject
+from presh_logging import presh_log, PRESHGEN_AUTO_LOG
+from presh_sim import PreshSim
 from datetime import datetime
 from pathlib import Path
 import os
@@ -22,16 +24,12 @@ DISABLE_NOTIFS = False
 DREL_INCEST = True
 FILE_NAME_EXTRA = 'PRESH_DEFAULT'
 IREL_INCEST = True
-LOG_LEVEL = 2
 MCCC_AUTOSAVE_ENABLED = False
 MCCC_AUTOSAVE_HEXSLOTNUMBER = ''
 MCCC_AUTOSAVE_MAXSAVENUMBER = 0
 MCCC_AUTOSAVES = []
-NUM_REPS = 1
 OVERALL_SIM_DAYS = 0
 PRESHGEN_AUTO_ENABLED = False
-PRESHGEN_AUTO_LOG = os.path.isfile(os.path.join(Path(__file__).resolve().parent.parent, 'preshgen_Logger.log'))
-PRESHGEN_LOG_LAST_LINE = ''
 SAVE_SLOT_ID = '00000000'
 SHOW_CONSANG = False
 # datetime object containing current date and time
@@ -71,20 +69,20 @@ preset_modifiers = [
     str(SHOW_CONSANG)
 ]
 
+#TASK: Environment Setup
 main_dir = Path(__file__).resolve().parent.parent
 config = configparser.ConfigParser()
 main_header = 'PreshGen Settings'
 
 # GLOBAL VARIBALES END ----------------------------------------------------------------------------------------
 
-
+# CONFIGURATION MANAGEMENT
 # CONFIG HELPERS --------------------------------------------------------------------------------------------------
 
 def get_config_dir():
     log_name = "preshgen_Settings.cfg"
     config_dir = os.path.join(main_dir, log_name)
     return config_dir
-
 
 def config_prep_file():
     with open(get_config_dir(), "w") as config_file:
@@ -93,7 +91,6 @@ def config_prep_file():
             config_file.write(f"\n{config_key_list[incrementor]} = {preset_modifiers[incrementor]}")
         config_file.close()
 
-
 def config_init_check():
     with open(get_config_dir(), "r") as config_file:
         config.read_file(config_file)
@@ -101,12 +98,21 @@ def config_init_check():
             if not config.has_option(main_header, config_key_list[incrementor]):
                 append_option(incrementor)
 
+def update_config(setting, value):
+    try:
+        if not config.has_section(main_header):
+            config.add_section(main_header)
+        config.set(main_header, setting, str(value))
+        with open(get_config_dir(), 'w') as config_file:
+            config.write(config_file)
+        presh_log(f"Updated config setting {setting} to {value}")
+    except Exception as e:
+        presh_log(f"Error updating config setting {setting}: {e}")
 
 def append_option(index):
     with open(get_config_dir(), "a") as config_file:
         config_file.write(f"\n{config_key_list[index]} = {preset_modifiers[index]}")
         config_file.close()
-
 
 def option_toggle(identifier):
     option = config_key_list[identifier]
@@ -121,14 +127,12 @@ def option_toggle(identifier):
             with open(get_config_dir(), "w") as config_file_write:
                 config.write(config_file_write)
 
-
 def get_slot():
     per = services.get_persistence_service()
     int_slot_id = int(per._save_game_data_proto.save_slot.slot_id)
     hex_slot_id_tmp = hex(int_slot_id)[2:]
     hex_slot_id = ('0' * (8 - len(hex_slot_id_tmp))) + hex_slot_id_tmp
     return hex_slot_id
-
 
 def format_sim_date(return_type='fullstring'):
     simNow = str(services.time_service().sim_now)
@@ -150,41 +154,7 @@ def format_sim_date(return_type='fullstring'):
 # CONFIG HELPERS END ------------------------------------------------------------------------------------------
 
 # LOGGER-CONFIG INIT -------------------------------------------------------------------------------------------------
-
-def presh_log(string, level=2):
-    global PRESHGEN_AUTO_LOG
-    global PRESHGEN_LOG_LAST_LINE
-    global NUM_REPS
-    string = str(string)
-    file_dir = Path(__file__).resolve().parent.parent
-    file_name = 'preshgen_Logger.log'
-    file_path = os.path.join(file_dir, file_name)
-
-    if not PRESHGEN_AUTO_LOG:
-        try:
-            with open(file_path, 'w') as file:
-                file.write(f'[Logger created at {DT_STRING}]\n')
-            PRESHGEN_AUTO_LOG = True
-            presh_log(string) #call presh_log function again to make sure actions are logged after file creation.
-        except Exception as e:
-            print(f'Error creating log file: {str(e)}')
-
-    if PRESHGEN_AUTO_LOG and level <= LOG_LEVEL:
-        try:
-            if string == PRESHGEN_LOG_LAST_LINE:
-                NUM_REPS += 1
-            else:
-                with open(file_path, 'a') as file:
-                    if NUM_REPS > 1:
-                        file.write(f'    (repeated {NUM_REPS} times)\n')
-                    file.write(string + '\n')
-                    PRESHGEN_LOG_LAST_LINE = string
-                    NUM_REPS = 1
-        except Exception as e:
-            print(f'Error writing to log file: {str(e)}')
-
-
-
+# Mod Initialization
 def start_logging():
     global MCCC_AUTOSAVE_ENABLED
     global MCCC_AUTOSAVE_HEXSLOTNUMBER
@@ -239,16 +209,14 @@ def start_logging():
             hex_slot_id = ('0' * (8 - len(hex_slot_id_tmp))) + hex_slot_id_tmp
             MCCC_AUTOSAVES.append(hex_slot_id)
         presh_log(f'autosave slots = {MCCC_AUTOSAVES}')
-
+    #write and save config file
     try:
         if not os.path.exists(get_config_dir()):
             config_prep_file()
         config_init_check()
 
         config.set(main_header, 'save_slot_id', SAVE_SLOT_ID)
-        config.set(main_header, 'overall_sim_days', str(OVERALL_SIM_DAYS))
-        # AttributeError: 'NoneType' object has no attribute 'time_service'rtim=0. ClientInfo isn't here 
-        # TODO: set OVERALL_SIM_DAYS after save loads. 
+        config.set(main_header, 'overall_sim_days', str(OVERALL_SIM_DAYS)) 
 
         # TODO: set config here for irel, drel, cos ang, sims, etc.
 
@@ -259,7 +227,25 @@ def start_logging():
     except Exception as e:
         presh_log(f'error updating config file: {str(e)}')
 
+# LOGGER-CONFIG INIT END ---------------------------------------------------------------------------------------
 
+# GET-SAVE-LOG GAME DATA --------------------------------------------------------------------------------------------------
+
+# Initialization function to create PreshSim objects for each Sim (SimInfo Object) in the Save
+def init_presh_sims():
+    presh_sim_objects = []
+    try:
+        for sim_info in services.sim_info_manager().get_all():
+            try:
+                presh_sim = PreshSim(sim_info)
+                presh_sim_objects.append(presh_sim)
+            except Exception as e:
+                presh_log(f'Error initializing PreshSim for sim_id {sim_info.sim_id}: {e}')
+    except Exception as e:
+        presh_log(f'Error initializing PreshSim objects: {e}')
+    return presh_sim_objects
+
+#Begin only after save has completed loading.
 @inject(SimInfoManager, 'on_all_households_and_sim_infos_loaded')
 def on_all_households_and_sim_infos_loaded(original, self, *args, **kwargs):
     result = original(self, *args, **kwargs)
@@ -270,8 +256,13 @@ def on_all_households_and_sim_infos_loaded(original, self, *args, **kwargs):
     OVERALL_SIM_DAYS = format_sim_date('day')
     start_logging()
     
+    PreshSims = init_presh_sims()
+    presh_log(f'Initialized {len(PreshSims)} PreshSim objects in Save: {SAVE_SLOT_ID}')
+    
+    #Testing
+    random_sim = random.choice(PreshSims)
+    presh_log(f'Random PreshSim Object: {random_sim} {random_sim.age_in_days} {random_sim.home_region} {random_sim.birth_location} ')
+    
     return result
 
-# LOGGER-CONFIG INIT END ---------------------------------------------------------------------------------------
 
-# GET-SAVE-LOG GAME DATA --------------------------------------------------------------------------------------------------
