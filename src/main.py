@@ -12,6 +12,7 @@ import os
 import sys
 import json
 import services
+import random
 import configparser
 
 #TASK: SAVE-SPECIFIC TRACKING
@@ -69,20 +70,25 @@ preset_modifiers = [
     str(SHOW_CONSANG)
 ]
 
-#TASK: Environment Setup
+#TASK: ENV SETUP
 main_dir = Path(__file__).resolve().parent.parent
 config = configparser.ConfigParser()
 main_header = 'PreshGen Settings'
 
 # GLOBAL VARIBALES END ----------------------------------------------------------------------------------------
 
-# CONFIGURATION MANAGEMENT
-# CONFIG HELPERS --------------------------------------------------------------------------------------------------
+# TASK: CONFIGURATION MANAGEMENT
+# CONFIG - JSON HELPERS --------------------------------------------------------------------------------------------------
 
 def get_config_dir():
     log_name = "preshgen_Settings.cfg"
     config_dir = os.path.join(main_dir, log_name)
     return config_dir
+
+def get_json_dir():
+    json_name = "presh_Sims.json"
+    json_dir = os.path.join(main_dir, json_name)
+    return json_dir
 
 def config_prep_file():
     with open(get_config_dir(), "w") as config_file:
@@ -134,6 +140,21 @@ def get_slot():
     hex_slot_id = ('0' * (8 - len(hex_slot_id_tmp))) + hex_slot_id_tmp
     return hex_slot_id
 
+def save_presh_sims_to_file(presh_sims, file_name=None):
+    if file_name is None:
+        file_name = get_json_dir()
+    with open(file_name, 'w') as file:
+        json.dump([sim.to_dict() for sim in presh_sims], file)
+
+def load_presh_sims_from_file(file_name=None):
+    if file_name is None:
+        file_name = get_json_dir()
+    if os.path.isfile(file_name):
+        with open(file_name, 'r') as file:
+            data = json.load(file)
+            return [PreshSim(data=sim_data) for sim_data in data]
+    return []
+
 def format_sim_date(return_type='fullstring'):
     simNow = str(services.time_service().sim_now)
     listNow = simNow.split(' ')
@@ -151,7 +172,7 @@ def format_sim_date(return_type='fullstring'):
         elif return_type == 'week':
             return simWeekNumber
 
-# CONFIG HELPERS END ------------------------------------------------------------------------------------------
+# CONFIG - JSON HELPERS END ------------------------------------------------------------------------------------------
 
 # LOGGER-CONFIG INIT -------------------------------------------------------------------------------------------------
 # Mod Initialization
@@ -233,16 +254,19 @@ def start_logging():
 
 # Initialization function to create PreshSim objects for each Sim (SimInfo Object) in the Save
 def init_presh_sims():
-    presh_sim_objects = []
-    try:
-        for sim_info in services.sim_info_manager().get_all():
-            try:
-                presh_sim = PreshSim(sim_info)
-                presh_sim_objects.append(presh_sim)
-            except Exception as e:
-                presh_log(f'Error initializing PreshSim for sim_id {sim_info.sim_id}: {e}')
-    except Exception as e:
-        presh_log(f'Error initializing PreshSim objects: {e}')
+    presh_sim_objects = load_presh_sims_from_file()
+    presh_log(f'Loaded {len(presh_sim_objects)} PreshSim objects from JSON.')
+    if not presh_sim_objects: # If no saved data, initialize from current game data
+        try:
+            for sim_info in services.sim_info_manager().get_all():
+                try:
+                    presh_sim = PreshSim(sim_info)
+                    presh_sim_objects.append(presh_sim)
+                except Exception as e:
+                    presh_log(f'Error initializing PreshSim for sim_id {sim_info.sim_id}: {e}')
+            save_presh_sims_to_file(presh_sim_objects) # Save the initial data
+        except Exception as e:
+            presh_log(f'Error initializing PreshSim objects: {e}')
     return presh_sim_objects
 
 #Begin only after save has completed loading.
@@ -255,14 +279,16 @@ def on_all_households_and_sim_infos_loaded(original, self, *args, **kwargs):
     SAVE_SLOT_ID = get_slot()
     OVERALL_SIM_DAYS = format_sim_date('day')
     start_logging()
-    
+    presh_log(f'[LOADED SAVE:\'{SAVE_SLOT_ID}\' at {DT_STRING}]')
+
     PreshSims = init_presh_sims()
     presh_log(f'Initialized {len(PreshSims)} PreshSim objects in Save: {SAVE_SLOT_ID}')
     
     #Testing
     random_sim = random.choice(PreshSims)
-    presh_log(f'Random PreshSim Object: {random_sim} {random_sim.age_in_days} {random_sim.home_region} {random_sim.birth_location} ')
+    presh_log(f'Random PreshSim Object: {random_sim} \nAge: {random_sim.age_in_days} \nCurrent World: {random_sim.get_current_world_name} \nBirth Location: {random_sim.birth_location} ')
     
+    save_presh_sims_to_file(PreshSims) # Save state at the end of initialization
     return result
 
 
