@@ -1,4 +1,6 @@
 #PRESHYPILY@GMAIL.COM
+from functools import lru_cache
+from sims4.resources import Types
 from sims.sim_info_manager import SimInfoManager
 from sims.sim_info_types import Age, Gender
 from traits.traits import TraitType
@@ -6,9 +8,9 @@ from sims.sim_info import SimInfo
 from presh_logging import presh_log
 import services
 
-
+CONSANG_LIMIT = 2 ** -5
 class PreshSim:
-    #TASK: Initialization of Sim Objects
+#TASK: INIT OF SIM OBJS TO PRESHSIM OBJS -------------------------------------------------------------------
     def __init__(self, sim_info=None, data=None):
             if sim_info:
                 self.sim_id = sim_info.sim_id
@@ -113,7 +115,114 @@ class PreshSim:
                 presh_log(f'completed preshsim info update at {self.time}')
             
             #birth_location will only need to be initalized once and never updated.
+#TASK: INIT OF SIM OBJS TO PRESHSIM OBJS END ---------------------------------------------------------------
+
+# TASK: RELATIONSHIP TRACKING ------------------------------------------------------------------------------
+    def get_children(self, sim_info):
+        manager = services.get_instance_manager(Types.RELATIONSHIP_BIT)
+        child_bit = manager.get(0x2265)
+        children = []
+
+        for other_sim_info in services.sim_info_manager().get_all():
+            if sim_info.relationship_tracker.has_bit(other_sim_info.sim_id, child_bit):
+                children.append(other_sim_info)
+
+        return children
     
+    @lru_cache(maxsize=None)
+    def calculate_generational_difference(self, sim_x, sim_y, current_gen=0):
+        if sim_y in self.get_children(sim_x):
+            return current_gen + 1
+
+        for child in self.get_children(sim_x):
+            gen_diff = self.calculate_generational_difference(child, sim_y, current_gen + 1)
+            if gen_diff > 0:
+                return gen_diff
+
+        return 0
+
+    def determine_relationship_name(self, generational_difference):
+        if generational_difference == 1:
+            return "parent"
+        elif generational_difference == 2:
+            return "grandparent"
+        elif generational_difference > 2:
+            return f"great{'-great' * (generational_difference - 3)} grandparent"
+        elif generational_difference == -1:
+            return "child"
+        elif generational_difference == -2:
+            return "grandchild"
+        elif generational_difference < -2:
+            return f"great{'-great' * (abs(generational_difference) - 3)} grandchild"
+        else:
+            return None
+
+    def get_direct_relationships(self, sim_info):
+        manager = services.get_instance_manager(Types.RELATIONSHIP_BIT)
+        direct_relationships = []
+        seen_sim_ids = set()  # Track already added sim_ids to avoid duplication
+
+        relationship_bits = {
+            'grandparent': 0x2268,
+            'parent': 0x2269,
+            'child': 0x2265,
+            'grandchild': 0x2267,
+        }
+
+        for other_sim_info in services.sim_info_manager().get_all():
+            relationship_name = None
+            for rel_name, bit_id in relationship_bits.items():
+                rel_bit = manager.get(bit_id)
+                if sim_info.relationship_tracker.has_bit(other_sim_info.sim_id, rel_bit):
+                    relationship_name = rel_name
+                    break
+
+            if not relationship_name:
+                gen_diff = self.calculate_generational_difference(sim_info, other_sim_info)
+                if gen_diff == 0:
+                    continue
+                relationship_name = self.determine_relationship_name(gen_diff)
+
+            if other_sim_info.sim_id not in seen_sim_ids:
+                direct_relationships.append({'relation': relationship_name, 'sim_id': other_sim_info.sim_id})
+                seen_sim_ids.add(other_sim_info.sim_id)
+
+        # Add children to direct relationships, ensuring no duplicates
+        for child in self.get_children(sim_info):
+            if child.sim_id not in seen_sim_ids:
+                direct_relationships.append({'relation': 'child', 'sim_id': child.sim_id})
+                seen_sim_ids.add(child.sim_id)
+
+        return direct_relationships
+
+        def calculate_consanguinity(self, sim_x, sim_y):
+            direct_rel_percentage = self.drel_percent(sim_x.sim_id, sim_y.sim_id)
+            indirect_rel_percentage = self.irel_percent(sim_x.sim_id, sim_y.sim_id)
+            total_consanguinity = direct_rel_percentage + indirect_rel_percentage
+
+            return total_consanguinity
+
+        @lru_cache(maxsize=None)
+        def drel_percent(self, x_id, y_id):
+            if int(y_id) < int(x_id):
+                return self.drel_percent(y_id, x_id)
+
+            generations = self.calculate_generational_difference(self.get_rivsim_from_id(x_id), self.get_rivsim_from_id(y_id))
+            if generations > 0:
+                return 0.5 ** generations
+            return 0
+
+        @lru_cache(maxsize=None)
+        def irel_percent(self, x_id, y_id):
+            if int(y_id) < int(x_id):
+                return self.irel_percent(y_id, x_id)
+
+            irel = self.get_indirect_relation(self.get_rivsim_from_id(x_id), self.get_rivsim_from_id(y_id))
+            irel_percentage = sum(0.5 ** (rel[2] + rel[3]) for rel in irel)
+
+            return irel_percentage if irel_percentage >= CONSANG_LIMIT else 0
+
+# TASK: RELATIONSHIP TRACKING END----------------------------------------------------------------------------
 
     def to_dict(self):
         return {

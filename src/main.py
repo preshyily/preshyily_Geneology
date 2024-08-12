@@ -86,7 +86,7 @@ def get_config_dir():
     return config_dir
 
 def get_json_dir():
-    json_name = "presh_Sims.json"
+    json_name = f'preshgen_Sims_{SAVE_SLOT_ID}.json'
     json_dir = os.path.join(main_dir, json_name)
     return json_dir
 
@@ -261,6 +261,7 @@ def init_presh_sims():
             for sim_info in services.sim_info_manager().get_all():
                 try:
                     presh_sim = PreshSim(sim_info)
+                    presh_sim.direct_relationships = presh_sim.get_direct_relationships(sim_info)
                     presh_sim_objects.append(presh_sim)
                 except Exception as e:
                     presh_log(f'Error initializing PreshSim for sim_id {sim_info.sim_id}: {e}')
@@ -285,8 +286,9 @@ def on_all_households_and_sim_infos_loaded(original, self, *args, **kwargs):
     presh_log(f'Initialized {len(PreshSims)} PreshSim objects in Save: {SAVE_SLOT_ID}')
     
     #Testing
-    random_sim = random.choice(PreshSims)
-    presh_log(f'Random PreshSim Object: {random_sim} \nAge: {random_sim.age_in_days} \nCurrent World: {random_sim.get_current_world_name} \nBirth Location: {random_sim.birth_location} ')
+    #random_sim = random.choice(PreshSims)
+    #currworld = random_sim.get_current_world_name
+    #presh_log(f'Random PreshSim Object: {random_sim} \nAge: {random_sim.age_in_days} \nCurrent World: {currworld} \nBirth Location: {random_sim.birth_location} ')
     
     save_presh_sims_to_file(PreshSims) # Save state at the end of initialization
     return result
