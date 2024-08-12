@@ -119,15 +119,9 @@ class PreshSim:
 
 # TASK: RELATIONSHIP TRACKING ------------------------------------------------------------------------------
     def get_children(self, sim_info):
-        manager = services.get_instance_manager(Types.RELATIONSHIP_BIT)
-        child_bit = manager.get(0x2265)
-        children = []
-
-        for other_sim_info in services.sim_info_manager().get_all():
-            if sim_info.relationship_tracker.has_bit(other_sim_info.sim_id, child_bit):
-                children.append(other_sim_info)
-
-        return children
+        child_bit = services.get_instance_manager(Types.RELATIONSHIP_BIT).get(0x2265)
+        return [other_sim_info for other_sim_info in services.sim_info_manager().get_all()
+                if sim_info.relationship_tracker.has_bit(other_sim_info.sim_id, child_bit)]
     
     @lru_cache(maxsize=None)
     def calculate_generational_difference(self, sim_x, sim_y, current_gen=0):
@@ -157,10 +151,19 @@ class PreshSim:
         else:
             return None
 
+    def remove_duplicate_relationships(self, relationships):
+        seen = set()
+        unique_relationships = []
+        for rel in relationships:
+            rel_tuple = (rel['relation'], rel['sim_id'])
+            if rel_tuple not in seen:
+                seen.add(rel_tuple)
+                unique_relationships.append(rel)
+        return unique_relationships
+
     def get_direct_relationships(self, sim_info):
         manager = services.get_instance_manager(Types.RELATIONSHIP_BIT)
         direct_relationships = []
-        seen_sim_ids = set()  # Track already added sim_ids to avoid duplication
 
         relationship_bits = {
             'grandparent': 0x2268,
@@ -170,12 +173,11 @@ class PreshSim:
         }
 
         for other_sim_info in services.sim_info_manager().get_all():
-            relationship_name = None
             for rel_name, bit_id in relationship_bits.items():
                 rel_bit = manager.get(bit_id)
                 if sim_info.relationship_tracker.has_bit(other_sim_info.sim_id, rel_bit):
-                    relationship_name = rel_name
-                    break
+                    direct_relationships.append({'relation': rel_name, 'sim_id': other_sim_info.sim_id})
+                    break 
 
             if not relationship_name:
                 gen_diff = self.calculate_generational_difference(sim_info, other_sim_info)
@@ -183,17 +185,20 @@ class PreshSim:
                     continue
                 relationship_name = self.determine_relationship_name(gen_diff)
 
-            if other_sim_info.sim_id not in seen_sim_ids:
-                direct_relationships.append({'relation': relationship_name, 'sim_id': other_sim_info.sim_id})
-                seen_sim_ids.add(other_sim_info.sim_id)
+            direct_relationships.append({
+                'relation': relationship_name, 
+                'sim_id': other_sim_info.sim_id
+            })
 
-        # Add children to direct relationships, ensuring no duplicates
+        # Add children to direct relationships
         for child in self.get_children(sim_info):
-            if child.sim_id not in seen_sim_ids:
-                direct_relationships.append({'relation': 'child', 'sim_id': child.sim_id})
-                seen_sim_ids.add(child.sim_id)
+            direct_relationships.append({
+                'relation': 'child',
+                'sim_id': child.sim_id
+            })
 
-        return direct_relationships
+        # Remove duplicates
+        return self.remove_duplicate_relationships(direct_relationships)
 
         def calculate_consanguinity(self, sim_x, sim_y):
             direct_rel_percentage = self.drel_percent(sim_x.sim_id, sim_y.sim_id)
