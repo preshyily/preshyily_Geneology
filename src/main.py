@@ -263,6 +263,7 @@ def init_presh_sims():
                     presh_sim = PreshSim(sim_info)
                     presh_sim.direct_relationships = presh_sim.get_direct_relationships(sim_info)
                     presh_sim.indirect_relationships = presh_sim.get_indirect_relationships(sim_info)
+                    presh_sim.romantic_relationships = presh_sim.get_romantic_relationships(sim_info)
                     presh_sim_objects.append(presh_sim)
                 except Exception as e:
                     presh_log(f'Error initializing PreshSim for sim_id {sim_info.sim_id}: {e}')

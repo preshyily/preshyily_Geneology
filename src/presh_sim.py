@@ -111,6 +111,9 @@ class PreshSim:
                 change = True
            
             if change:
+                self.direct_relationships = self.get_direct_relationships(sim_info)
+                self.indirect_relationships = self.get_indirect_relationships(sim_info)
+                self.romantic_relationships = self.get_romantic_relationships(sim_info)
                 self.time = services.time_service().sim_now.absolute_ticks()
                 presh_log(f'completed preshsim info update at {self.time}')
             
@@ -136,6 +139,7 @@ class PreshSim:
         return 0
 
     def determine_relationship_name(self, generational_difference, relationship_type=None):
+        #Direct Relationships
         if relationship_type == 'parent':
             if generational_difference == 1:
                 return "parent"
@@ -151,7 +155,8 @@ class PreshSim:
                 return "grandchild"
             elif generational_difference < -2:
                 return f"great{'-great' * (abs(generational_difference) - 3)} grandchild"
-        
+            
+        #Indirect Relationships
         elif relationship_type == 'sibling':
             if generational_difference == 0:
                 return "sibling"
@@ -180,6 +185,44 @@ class PreshSim:
                 return "grand niece/nephew"
             elif generational_difference < -2:
                 return f"great{'-great' * (abs(generational_difference) - 3)} niece/nephew"
+
+        #Romantic Relationships
+        elif relationship_type in ['spouse', 'widow/widower', 'dead_spouse']:
+            return "spouse"
+        elif relationship_type == 'engaged' or relationship_type == 'promised':
+            return "engaged/promised"
+        elif relationship_type in ['partner', 'faithful', 'soulmates']:
+            return "partner"
+        elif relationship_type in ['romantic_interest', 'getting_married', 'lovebirds', 'lovers', 'sweethearts']:
+            return "romantic partner"
+        
+        # Negative Romantic Relationships
+        elif relationship_type in ['just_broke_up_or_divorced', 'broken_up', 'broken_up_engaged', 'divorced', 'despised_ex', 'frustrated_ex']:
+            return "ex-partner"
+        elif relationship_type in ['got_cold_feet', 'left_at_the_altar']:
+            return "failed engagement"
+        elif relationship_type in ['awkward_friends', 'awkward_lovers', 'bad_match', 'terrible_match', 'total_opposites', 'bad_romance']:
+            return "unfortunate romance"
+        elif relationship_type == 'enemies_with_benefits':
+            return "enemies with benefits"
+        elif relationship_type in ['has_been_unfaithful', 'cheated_with']:
+            return "unfaithful partner"
+        
+        # Miscellaneous Romantic Relationships
+        elif relationship_type in ['first_kiss', 'recent_first_kiss']:
+            return "first kiss"
+        elif relationship_type in ['have_done_woohoo', 'have_done_woohoo_recently']:
+            return "WooHoo partner"
+        elif relationship_type == 'exchanged_numbers':
+            return "flirtatious acquaintance"
+        elif relationship_type in ['its_awkward', 'its_complicated', 'its_very_awkward', 'its_very_complicated']:
+            return "complicated relationship"
+        elif relationship_type in ['frenemies', 'hot_and_cold']:
+            return "unstable relationship"
+        elif relationship_type in ['romantic_acquaintances', 'just_friends', 'just_good_friends']:
+            return "casual acquaintance"
+        elif relationship_type in ['romantic_disliked', 'romantic_despised']:
+            return "disliked romantic partner"
         
         return "unknown"
 
@@ -272,6 +315,87 @@ class PreshSim:
 
         return self.remove_duplicate_relationships(direct_relationships)
 
+    def get_romantic_relationships(self, sim_info):
+        manager = services.get_instance_manager(Types.RELATIONSHIP_BIT)
+        romantic_relationships = []
+
+        # Relationship bits for various romantic states
+        romance_bits = {
+            # Positive Romantic Relationships
+            'spouse': 0x3DCE,
+            'engaged': 0x3DC8,
+            'partner': 0x3DD1,
+            'romantic_interest': 0x3DDE,
+            'getting_married': 0x3DCA,
+            'lovebirds': 0x3DD5,
+            'lovers': 0x3DDD,
+            'sweethearts': 0x3DE0,
+            'faithful': 0x2DD3D,
+            'soulmates': 0x3DDF,
+
+            # Negative Romantic Relationships
+            'broken_up': 0x3DC3,
+            'broken_up_engaged': 0x3DC4,
+            'despised_ex': 0x3DC6,
+            'divorced': 0x3DC7,
+            'frustrated_ex': 0x3DC9,
+            'got_cold_feet': 0x3DCB,
+            'left_at_the_altar': [0x3DCD, 0x99BC],  # Two bits for leaving at the altar
+            'awkward_friends': 0x3DD2,
+            'awkward_lovers': 0x3DD3,
+            'bad_match': 0x3DD4,
+            'enemies_with_benefits': 0x3DD6,
+            'terrible_match': 0x3DE1,
+            'total_opposites': 0x3DE2,
+            'bad_romance': 0x3DE3,
+            'has_been_unfaithful': 0x905D,
+            'cheated_with': 0x9191,
+            'just_broke_up_or_divorced': 0x17C34,
+
+            # Widow/Widower
+            'widow/widower': [0x18EC1, 0x191FF, 0x196E1],  # Widow and widower bits
+
+            # Miscellaneous Romantic Relationships
+            'first_kiss': 0x27A6,
+            'recent_first_kiss': 0x12E3B,
+            'have_done_woohoo': 0x873B,
+            'have_done_woohoo_recently': 0x17B82,
+            'exchanged_numbers': 0x1F064,
+            'promised': 0x18465,  # Engaged but as teens
+            'its_awkward': 0x3DD9,
+            'its_complicated': 0x3DDA,
+            'its_very_awkward': 0x3DDB,
+            'its_very_complicated': 0x3DDC,
+            'frenemies': 0x3DD7,
+            'hot_and_cold': 0x3DD8,
+            'romantic_acquaintances': 0x12F11,
+            'just_friends': 0x0000000000012F41,
+            'just_good_friends': 0x0000000000012F42,
+            'romantic_disliked': 0x0000000000012F4F,
+            'romantic_despised': 0x0000000000012F50,
+        }
+
+        for other_sim_info in services.sim_info_manager().get_all():
+            if sim_info == other_sim_info:
+                continue
+
+            relationship_name = None
+            for rel_name, bit_id in romance_bits.items():
+                if isinstance(bit_id, list):
+                    for bit in bit_id:
+                        if sim_info.relationship_tracker.has_bit(other_sim_info.sim_id, manager.get(bit)):
+                            relationship_name = rel_name
+                            break
+                else:
+                    if sim_info.relationship_tracker.has_bit(other_sim_info.sim_id, manager.get(bit_id)):
+                        relationship_name = rel_name
+                        break
+
+            if relationship_name:
+                romantic_relationships.append({'relation': relationship_name, 'sim_id': other_sim_info.sim_id})
+
+        return self.remove_duplicate_relationships(romantic_relationships)
+
 # TASK: RELATIONSHIP TRACKING END----------------------------------------------------------------------------
 
     def to_dict(self):
@@ -293,17 +417,17 @@ class PreshSim:
             'special_relationships': self.special_relationships,
             'step_relationships': self.step_relationships
         }
-
+    
     def cull(self):
         if not self.is_culled:
             self.is_culled = True
             # TODO: remove marriages if necessary
             # Example: self.marriages = []
-
+    
     def uncull(self):
         if self.is_culled:
             self.is_culled = False
-
+    
     def __repr__(self):
         return f"<PreshSim {self.sim_id} {self.first_name} {self.last_name}>"
         
