@@ -135,21 +135,53 @@ class PreshSim:
 
         return 0
 
-    def determine_relationship_name(self, generational_difference):
-        if generational_difference == 1:
-            return "parent"
-        elif generational_difference == 2:
-            return "grandparent"
-        elif generational_difference > 2:
-            return f"great{'-great' * (generational_difference - 3)} grandparent"
-        elif generational_difference == -1:
-            return "child"
-        elif generational_difference == -2:
-            return "grandchild"
-        elif generational_difference < -2:
-            return f"great{'-great' * (abs(generational_difference) - 3)} grandchild"
-        else:
-            return None
+    def determine_relationship_name(self, generational_difference, relationship_type=None):
+        if relationship_type == 'parent':
+            if generational_difference == 1:
+                return "parent"
+            elif generational_difference == 2:
+                return "grandparent"
+            elif generational_difference > 2:
+                return f"great{'-great' * (generational_difference - 3)} grandparent"
+
+        elif relationship_type == 'child':
+            if generational_difference == -1:
+                return "child"
+            elif generational_difference == -2:
+                return "grandchild"
+            elif generational_difference < -2:
+                return f"great{'-great' * (abs(generational_difference) - 3)} grandchild"
+        
+        elif relationship_type == 'sibling':
+            if generational_difference == 0:
+                return "sibling"
+
+        elif relationship_type == 'cousin':
+            cousin_level = abs(generational_difference) + 1
+            if generational_difference == 0:
+                return f"{cousin_level}th cousin"
+            elif generational_difference > 0:
+                return f"{cousin_level}th cousin {generational_difference} times removed"
+            elif generational_difference < 0:
+                return f"{cousin_level}th cousin {-generational_difference} times removed"
+
+        elif relationship_type == 'pibling':
+            if generational_difference == 1:
+                return "aunt/uncle"
+            elif generational_difference == 2:
+                return "grand aunt/uncle"
+            elif generational_difference > 2:
+                return f"great{'-great' * (generational_difference - 3)} aunt/uncle"
+
+        elif relationship_type == 'nibling':
+            if generational_difference == -1:
+                return "niece/nephew"
+            elif generational_difference == -2:
+                return "grand niece/nephew"
+            elif generational_difference < -2:
+                return f"great{'-great' * (abs(generational_difference) - 3)} niece/nephew"
+        
+        return "unknown"
 
     def remove_duplicate_relationships(self, relationships):
         seen = set()
@@ -160,6 +192,42 @@ class PreshSim:
                 seen.add(rel_tuple)
                 unique_relationships.append(rel)
         return unique_relationships
+
+    def get_indirect_relationships(self, sim_info):
+        manager = services.get_instance_manager(Types.RELATIONSHIP_BIT)
+        indirect_relationships = []
+
+        relationship_bits = {
+            'sibling': 0x2262,
+            'cousin': 0x227A,
+            'pibling': 0x227D,   # Aunt/Uncle
+            'nibling': 0x2705    # Nephew/Niece
+        }
+
+        for other_sim_info in services.sim_info_manager().get_all():
+            if sim_info == other_sim_info:
+                continue
+
+            relationship_name = None
+            for rel_name, bit_id in relationship_bits.items():
+                rel_bit = manager.get(bit_id)
+                if sim_info.relationship_tracker.has_bit(other_sim_info.sim_id, rel_bit):
+                    if rel_name == 'sibling':
+                        relationship_name = rel_name
+                    elif rel_name == 'cousin':
+                        gen_diff = self.calculate_generational_difference(sim_info, other_sim_info)
+                        relationship_name = self.determine_relationship_name(gen_diff, 'cousin')
+                    elif rel_name == 'pibling':
+                        gen_diff = 1
+                        relationship_name = self.determine_relationship_name(gen_diff, 'pibling')
+                    elif rel_name == 'nibling':
+                        gen_diff = -1
+                        relationship_name = self.determine_relationship_name(gen_diff, 'nibling')
+
+                    indirect_relationships.append({'relation': relationship_name, 'sim_id': other_sim_info.sim_id})
+                    break
+
+        return self.remove_duplicate_relationships(indirect_relationships)
 
     def get_direct_relationships(self, sim_info):
         manager = services.get_instance_manager(Types.RELATIONSHIP_BIT)
@@ -173,22 +241,27 @@ class PreshSim:
         }
 
         for other_sim_info in services.sim_info_manager().get_all():
+            if sim_info == other_sim_info:
+                continue
+
+            relationship_name = None
             for rel_name, bit_id in relationship_bits.items():
                 rel_bit = manager.get(bit_id)
                 if sim_info.relationship_tracker.has_bit(other_sim_info.sim_id, rel_bit):
-                    direct_relationships.append({'relation': rel_name, 'sim_id': other_sim_info.sim_id})
-                    break 
+                    relationship_name = rel_name
+                    direct_relationships.append({'relation': relationship_name, 'sim_id': other_sim_info.sim_id})
+                    break
 
             if not relationship_name:
                 gen_diff = self.calculate_generational_difference(sim_info, other_sim_info)
                 if gen_diff == 0:
                     continue
-                relationship_name = self.determine_relationship_name(gen_diff)
+                relationship_name = self.determine_relationship_name(gen_diff, 'parent' if gen_diff > 0 else 'child')
 
-            direct_relationships.append({
-                'relation': relationship_name, 
-                'sim_id': other_sim_info.sim_id
-            })
+                direct_relationships.append({
+                    'relation': relationship_name,
+                    'sim_id': other_sim_info.sim_id
+                })
 
         # Add children to direct relationships
         for child in self.get_children(sim_info):
@@ -197,35 +270,7 @@ class PreshSim:
                 'sim_id': child.sim_id
             })
 
-        # Remove duplicates
         return self.remove_duplicate_relationships(direct_relationships)
-
-        def calculate_consanguinity(self, sim_x, sim_y):
-            direct_rel_percentage = self.drel_percent(sim_x.sim_id, sim_y.sim_id)
-            indirect_rel_percentage = self.irel_percent(sim_x.sim_id, sim_y.sim_id)
-            total_consanguinity = direct_rel_percentage + indirect_rel_percentage
-
-            return total_consanguinity
-
-        @lru_cache(maxsize=None)
-        def drel_percent(self, x_id, y_id):
-            if int(y_id) < int(x_id):
-                return self.drel_percent(y_id, x_id)
-
-            generations = self.calculate_generational_difference(self.get_rivsim_from_id(x_id), self.get_rivsim_from_id(y_id))
-            if generations > 0:
-                return 0.5 ** generations
-            return 0
-
-        @lru_cache(maxsize=None)
-        def irel_percent(self, x_id, y_id):
-            if int(y_id) < int(x_id):
-                return self.irel_percent(y_id, x_id)
-
-            irel = self.get_indirect_relation(self.get_rivsim_from_id(x_id), self.get_rivsim_from_id(y_id))
-            irel_percentage = sum(0.5 ** (rel[2] + rel[3]) for rel in irel)
-
-            return irel_percentage if irel_percentage >= CONSANG_LIMIT else 0
 
 # TASK: RELATIONSHIP TRACKING END----------------------------------------------------------------------------
 
