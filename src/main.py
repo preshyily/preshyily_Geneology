@@ -264,6 +264,12 @@ def init_presh_sims():
                     presh_sim.direct_relationships = presh_sim.get_direct_relationships(sim_info)
                     presh_sim.indirect_relationships = presh_sim.get_indirect_relationships(sim_info)
                     presh_sim.romantic_relationships = presh_sim.get_romantic_relationships(sim_info)
+                    
+                    #requires direct, indirect, and romantic to not be empty
+                    if any(rel['relation'] == 'spouse' for rel in presh_sim.romantic_relationships):
+                        presh_sim.get_in_law_relationships(sim_info)
+                    
+                    
                     presh_sim_objects.append(presh_sim)
                 except Exception as e:
                     presh_log(f'Error initializing PreshSim for sim_id {sim_info.sim_id}: {e}')
@@ -295,5 +301,7 @@ def on_all_households_and_sim_infos_loaded(original, self, *args, **kwargs):
     
     save_presh_sims_to_file(PreshSims) # Save state at the end of initialization
     return result
+
+
 
 
